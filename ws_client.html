@@ -7,10 +7,10 @@
     <ul id="res">
     </ul>
     <input type="input" id="key"></input>
-    <button disabled="true" onclick="envoyer()">Envoyer</button>
+    <button id="btn_envoi" disabled="true" onclick="envoyer()">Envoyer</button>
     <br>
-    <button onclick="connexion()">Connect</button>
-    <button disabled="true" onclick="cloture()">Close</button>
+    <button id="btn_connexion" onclick="connexion()">Connect</button>
+    <button id="btn_cloture" disabled="true" onclick="cloture()">Close</button>
     <script>
         function cloture(){
             document.getElementById("btn_envoi").disabled = true;
