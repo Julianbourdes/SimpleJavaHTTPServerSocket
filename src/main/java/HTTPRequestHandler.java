@@ -15,15 +15,17 @@ public class HTTPRequestHandler implements Runnable {
 
         try {
             System.out.println("New thread started to respond to client request");
-            this.dispatchResponse();
+            byte[] content = this.readHeader();
+            this.dispatchResponse(content);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    public String generateHttpResponse(String message) throws UnsupportedEncodingException {
+    public String generateHttpResponse(byte[] content) throws UnsupportedEncodingException {
         //  Calcul de la taille (en octet) de la charge utile de la reponse
-        int length = message.getBytes("UTF-8").length;
+        String message = new String(content);
+        int length = message.length();
         //  Génération des entetes de la reponse
         String responseHeaders = "";
         responseHeaders += "HTTP/1.1 200 OK\r\n";
@@ -35,15 +37,53 @@ public class HTTPRequestHandler implements Runnable {
     }
 
 
-    public void dispatchResponse() throws IOException {
+    public void dispatchResponse(byte[] content) throws IOException {
         System.out.println("Displatch response");
         //  Generate response
-        String welcomeMsg = "Traitement de la requete coté serveur à " + new Date().toString();
-        String httpResponse = this.generateHttpResponse(welcomeMsg);
+
+        String httpResponse = this.generateHttpResponse(content);
         //  Send response
         this.clientSocket.getOutputStream().write(httpResponse.getBytes("UTF-8"));
         //  Close socket (sinon le client reste en attente de données)
         this.clientSocket.close();
+    }
+
+    public byte[] readHeader() throws IOException {
+        // Declarate buffer
+        byte[] b = new byte[512];
+        int n;
+
+        InputStream inputStream = this.clientSocket.getInputStream();
+        OutputStream outputStream = this.clientSocket.getOutputStream();
+        // Read the message from the client
+        while((n = inputStream.read(b)) > 0) {
+            // Convert Characters buffer to String
+            String s = new String(b);
+
+            // To treat GET method request, I check if the message contains GET
+            if(s.startsWith("GET")) {
+
+                // The answer should be with the form "GET <path> HTTP/1.1"
+                // So we want to get the path, we use split function and get it at the 1 index
+                String[] answer = s.split("\\s+");
+                // Remove / character
+                File file = new File(answer[1].substring(1));
+                FileInputStream fileInputStream = new FileInputStream(file);
+//                fileInputStream.read();
+                byte[] content = new byte[(int) file.length()];
+
+                while(fileInputStream.available() > 0) {
+                    fileInputStream.read(content);
+                }
+
+                //String message = new String(content);
+                return content;
+            }
+
+            // Initialialise buffer
+            b = new byte[512];
+        }
+        return null;
     }
 
 }
