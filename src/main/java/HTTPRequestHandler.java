@@ -171,27 +171,20 @@ public class HTTPRequestHandler implements Runnable {
                         break;
                     case "Sec-WebSocket-Key":
                         map.replace("Sec-WebSocket-Key", true);
-                        this.magicKey = Base64.getEncoder().encodeToString(toSHA1(splitLine[1].concat("258EAFA5-E914-47DA-95CA-C5AB0DC85B11").getBytes()));
+                        this.magicKey = Base64
+                                .getEncoder()
+                                .encodeToString(Tools.toSHA1(
+                                        splitLine[1]
+                                                .concat("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+                                                .getBytes()
+                                )
+                        );
 
                         break;
                 }
             }
         }
         return !map.containsValue(false);
-    }
-
-
-    private static byte[] toSHA1(final byte[] data) {
-        MessageDigest md = null;
-        try {
-            md = MessageDigest.getInstance("SHA-1");
-        }
-        catch(NoSuchAlgorithmException e) {
-            e.printStackTrace();
-        }
-        assert md != null;
-        return md.digest(data);
-
     }
 
     private void treatmentTrame() throws IOException {
