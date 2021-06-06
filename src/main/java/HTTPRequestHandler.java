@@ -6,11 +6,34 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class HTTPRequestHandler implements Runnable {
+    /*
+    Websocket protocol
+
+     0                   1                   2                   3
+     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+    +-+-+-+-+-------+-+-------------+-------------------------------+
+    |F|R|R|R| opcode|M| Payload len |    Extended payload length    |
+    |I|S|S|S|  (4)  |A|     (7)     |             (16/64)           |
+    |N|V|V|V|       |S|             |   (if payload len==126/127)   |
+    | |1|2|3|       |K|             |                               |
+    +-+-+-+-+-------+-+-------------+ - - - - - - - - - - - - - - - +
+    |     Extended payload length continued, if payload len == 127  |
+    + - - - - - - - - - - - - - - - +-------------------------------+
+    |                               |Masking-key, if MASK set to 1  |
+    +-------------------------------+-------------------------------+
+    | Masking-key (continued)       |          Payload Data         |
+    +-------------------------------- - - - - - - - - - - - - - - - +
+    :                     Payload Data continued ...                :
+    + - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - +
+    |                     Payload Data continued ...                |
+    +---------------------------------------------------------------+
+    */
 
     final Socket clientSocket;
     private static final byte[] NO_FILES = {};
     private String magicKey;
     private BufferedReader reader;
+    private InputStream websocketpipe;
 
     public HTTPRequestHandler(Socket s) {
         this.clientSocket = s;
@@ -18,7 +41,6 @@ public class HTTPRequestHandler implements Runnable {
 
     @Override
     public void run() {
-
         try {
             System.out.println("New thread started to respond to client request");
             byte[] content = this.readHeader();
@@ -70,9 +92,13 @@ public class HTTPRequestHandler implements Runnable {
         if (isWebSocket()) {
             System.out.println("Prepare websocket");
             String wsResponse = this.generateWebSoResponse();
-            System.out.println(wsResponse);
             this.clientSocket.getOutputStream().write(wsResponse.getBytes(StandardCharsets.UTF_8));
-
+            // Ecoute constante après envoie du handshake et de l'entête Websocket
+            System.out.println("Prepare treatment of a websocket trame");
+            // Récupération du flux en provenance du websocket
+            this.websocketpipe = this.clientSocket.getInputStream();
+            // Treatment of the websocket
+            this.treatmentTrame();
         } else {
             //  Generate
             String httpResponse = this.generateHttpResponse(content);
@@ -112,16 +138,11 @@ public class HTTPRequestHandler implements Runnable {
                     return NO_FILES;
                 }
             }
-            else {
-                // Web socket treatment
-                // FF2A --> Utiliser le input stream pour lire octet par octet
-            }
         }
         return NO_FILES;
     }
 
     private boolean isWebSocket() throws IOException, NoSuchAlgorithmException {
-        System.out.println("IsWebsocket ?");
         HashMap<String, Boolean> map = new HashMap<>();
 
         map.put("Upgrade", false);
@@ -154,7 +175,6 @@ public class HTTPRequestHandler implements Runnable {
 
                         break;
                 }
-
             }
         }
         return !map.containsValue(false);
@@ -172,6 +192,29 @@ public class HTTPRequestHandler implements Runnable {
         assert md != null;
         return md.digest(data);
 
+    }
+
+    private void treatmentTrame() throws IOException {
+        // Declarate buffer
+        // We will treat byte by byte
+        byte[] b = new byte[8];
+        int n;
+
+        System.out.println("Start of the treatment");
+
+        while((n = this.websocketpipe.read(b)) > 0) {
+            System.out.println("Byte : " +b.toString());
+            for (byte bit:
+                 b) {
+                System.out.println("Octet : " + bit);
+                System.out.println("Octet en non signé : "+ ~bit);
+                System.out.println("Octet cast en int : " + (int) bit);
+                System.out.println("Bit to binary : " + Integer.toBinaryString(bit));
+                System.out.println("Bit cast Integer to binary : " + Integer.toBinaryString((int) bit));
+            }
+            System.out.println("Length : " + b.length);
+            b = new byte[8];
+        }
     }
 
 }
