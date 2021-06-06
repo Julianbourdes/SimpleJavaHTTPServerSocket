@@ -1,3 +1,4 @@
+import javax.crypto.spec.PSource;
 import java.io.*;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
@@ -33,7 +34,7 @@ public class HTTPRequestHandler implements Runnable {
     private static final byte[] NO_FILES = {};
     private String magicKey;
     private BufferedReader reader;
-    private InputStream websocketpipe;
+    private DataInputStream websocketpipe; // Provide features to treat byte
 
     public HTTPRequestHandler(Socket s) {
         this.clientSocket = s;
@@ -78,7 +79,7 @@ public class HTTPRequestHandler implements Runnable {
         responseHeaders += "HTTP/1.1 101 Switching Protocols\r\n";
         responseHeaders += "Upgrade: websocket\r\n";
         responseHeaders += "Connection: Upgrade\r\n";
-        responseHeaders += "Sec-Websocket-Accept: " + this.magicKey+"\r\n";
+        responseHeaders += "Sec-WebSocket-Accept: " + this.magicKey +"\r\n";
         responseHeaders += "Content-Type: text/html; charset=utf-8\r\n";
         responseHeaders += "\r\n";
 
@@ -96,10 +97,13 @@ public class HTTPRequestHandler implements Runnable {
             // Ecoute constante après envoie du handshake et de l'entête Websocket
             System.out.println("Prepare treatment of a websocket trame");
             // Récupération du flux en provenance du websocket
-            this.websocketpipe = this.clientSocket.getInputStream();
+            this.websocketpipe = new DataInputStream(this.clientSocket.getInputStream());
             // Treatment of the websocket
-            this.treatmentTrame();
+            while(true) {
+                this.treatmentTrame();
+            }
         } else {
+            System.out.println("Prepare http request");
             //  Generate
             String httpResponse = this.generateHttpResponse(content);
             //  Send response
@@ -118,7 +122,7 @@ public class HTTPRequestHandler implements Runnable {
         if((s = reader.readLine()) != null && s.length() != 0) {
             // To treat GET method request, I check if the message begins with GET
             if (s.startsWith("GET")) {
-                System.out.println("Header start display : \n" + s + "Header end display\n");
+                System.out.println("Header start display : \n" + s + "\nHeader end display\n");
                 // The answer should be with the form "GET <path> HTTP/1.1"
                 // So we want to get the path, we use split function and get it at the 1 index
                 String[] answer = s.split("\\s+");
@@ -153,7 +157,6 @@ public class HTTPRequestHandler implements Runnable {
 
         while ((line = this.reader.readLine()) != null && line.length() != 0) {
 
-
             String[] splitLine;
             splitLine = line.split("\\s*:\\s*");
 
@@ -165,7 +168,7 @@ public class HTTPRequestHandler implements Runnable {
                         }
                         break;
                     case "Connection":
-                        if (splitLine[1].equals("Upgrade")) {
+                        if (splitLine[1].contains("Upgrade")) {
                             map.replace("Connection", true);
                         }
                         break;
@@ -177,9 +180,8 @@ public class HTTPRequestHandler implements Runnable {
                                         splitLine[1]
                                                 .concat("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
                                                 .getBytes()
-                                )
-                        );
-
+                                        )
+                                );
                         break;
                 }
             }
@@ -190,24 +192,17 @@ public class HTTPRequestHandler implements Runnable {
     private void treatmentTrame() throws IOException {
         // Declarate buffer
         // We will treat byte by byte
-        byte[] b = new byte[8];
-        int n;
+        try{
 
-        System.out.println("Start of the treatment");
 
-        while((n = this.websocketpipe.read(b)) > 0) {
-            System.out.println("Byte : " +b.toString());
-            for (byte bit:
-                 b) {
-                System.out.println("Octet : " + bit);
-                System.out.println("Octet en non signé : "+ ~bit);
-                System.out.println("Octet cast en int : " + (int) bit);
-                System.out.println("Bit to binary : " + Integer.toBinaryString(bit));
-                System.out.println("Bit cast Integer to binary : " + Integer.toBinaryString((int) bit));
-            }
-            System.out.println("Length : " + b.length);
-            b = new byte[8];
+        System.out.println("TEST");
+        Frame frame = new Frame(this.websocketpipe);
+        frame.setPayload(Tools.unMaskPayload(frame));
+        frame.displayMessage();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
     }
 
 }
