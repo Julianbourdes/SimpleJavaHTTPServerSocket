@@ -46,7 +46,7 @@ public class Tools {
             for (int i=0; i < data.length; i++){
                 int currentMask = (byte)masks[i % 4];
                 data[i] = (byte) (data[i]^currentMask);
-                System.out.println("Payload ["+i+"] :"+data[i] + " : "+(char)data[i] );
+                if (frame.getOpcode() == Frame.Opcode.text.getCode() || frame.getOpcode() == Frame.Opcode.binary.getCode()) System.out.println("Payload ["+i+"] :"+data[i] + " : "+(char)data[i] );
             }
         }
 

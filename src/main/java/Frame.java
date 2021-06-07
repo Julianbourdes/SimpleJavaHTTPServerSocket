@@ -1,8 +1,11 @@
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
+import java.util.Random;
 
 public class Frame {
         /*
@@ -29,12 +32,12 @@ public class Frame {
     */
 
     enum Opcode {
-        continuation (0),
-        text (1), // Can be segmented
-        binary (2), // Can be segmented
-        closure (8),
-        ping (9),
-        pong (10); // Because A = 10 in hexadecimal world
+        continuation(0),
+        text(1), // Can be segmented
+        binary(2), // Can be segmented
+        closure(8),
+        ping(9),
+        pong(10); // Because A = 10 in hexadecimal world
 
         private int code;
 
@@ -65,6 +68,7 @@ public class Frame {
     private int extendedPayloadLengthContinued = 0;
     private int[] maskingKey;
     private byte[] payload;
+    private long lastPingTime;
 
     public int getFin() {
         return fin;
@@ -154,6 +158,14 @@ public class Frame {
         this.payload = payload;
     }
 
+    public long getLastPingTime() {
+        return lastPingTime;
+    }
+
+    public void setLastPingTime(long lastPingTime) {
+        this.lastPingTime = lastPingTime;
+    }
+
     public Frame(DataInputStream dataInputStream) throws IOException {
         // Read first byte
         byte octet = dataInputStream.readByte();
@@ -164,9 +176,9 @@ public class Frame {
         this.opcode = octet & 0b00001111;
 
         // End treatment first byte
-        System.out.println("Fin : "+this.fin);
-        System.out.println("RSV1 : "+this.rsv1+", RSV2 : "+this.rsv2+", RSV3 : "+this.rsv3);
-        System.out.println("Opcode : "+ this.opcode);
+        System.out.println("Fin : " + this.fin);
+        System.out.println("RSV1 : " + this.rsv1 + ", RSV2 : " + this.rsv2 + ", RSV3 : " + this.rsv3);
+        System.out.println("Opcode : " + this.opcode);
 
         // Get second octet
         octet = dataInputStream.readByte();
@@ -177,33 +189,46 @@ public class Frame {
         System.out.println("PayloadLength : " + payloadLength);
 
         // Is there and extended payload length or extendedPayloadlengthContinue ?
-        if(payloadLength == 126){
+        if (payloadLength == 126) {
             //TODO
             //this.extendedPayloadLength = Tools.concatByteToInt(2, dataInputStream);
-            //System.out.println("Extended payload length");
-        }
-        else if (payloadLength == 127) {
+            //System.out.println("PayloadLength : " + extendedPayloadLength);
+        } else if (payloadLength == 127) {
             //TODO
             //this.extendedPayloadLengthContinued = Tools.concatByteToInt(8, dataInputStream);
-            //System.out.println("Extended payload length continue : "+ extendedPayloadLengthContinued);
+            //System.out.println("Extended payload length continued : "+ extendedPayloadLengthContinued);
         }
 
         // Is there a mask ?
-        if(this.mask == 1) {
+        if (this.mask == 1) {
             this.maskingKey = Tools.bytesToArray(4, dataInputStream);
-            System.out.println("MaskingKey 1:"+maskingKey[0]);
-            System.out.println("MaskingKey 2:"+maskingKey[1]);
-            System.out.println("MaskingKey 3:"+maskingKey[2]);
-            System.out.println("MaskingKey 4:"+maskingKey[3]);
+            System.out.println("MaskingKey 1:" + maskingKey[0]);
+            System.out.println("MaskingKey 2:" + maskingKey[1]);
+            System.out.println("MaskingKey 3:" + maskingKey[2]);
+            System.out.println("MaskingKey 4:" + maskingKey[3]);
         }
 
         // Payload
-        int lngth = Math.max(Math.max(payloadLength,extendedPayloadLength),extendedPayloadLengthContinued);
+        int lngth = Math.max(Math.max(payloadLength, extendedPayloadLength), extendedPayloadLengthContinued);
         byte[] res = new byte[lngth];
-        for (int i=0;i<lngth;i++){
-            res[i] = dataInputStream.readByte() ;
+        for (int i = 0; i < lngth; i++) {
+            res[i] = dataInputStream.readByte();
         }
         this.payload = res;
+    }
+
+    public Frame(int fin, int rsv1, int rsv2, int rsv3, int opcode, int mask, byte[] payload,long currentTime) {
+        this.fin = fin;
+        this.rsv1 = rsv1;
+        this.rsv2 = rsv2;
+        this.rsv3 = rsv3;
+        this.opcode = opcode;
+        this.mask = mask;
+        this.payload = payload;
+        this.extendedPayloadLength = 0;
+        this.extendedPayloadLengthContinued = 0;
+        this.lastPingTime = currentTime;
+       setLengthAndMask();
     }
 
     public void displayMessage() {
@@ -212,4 +237,99 @@ public class Frame {
         System.out.println(payload);
     }
 
+    public static Frame createPingFrame() {
+        Date date = new Date();
+        long currentTime = date.getTime();
+        return new Frame(1, 0, 0, 0, Opcode.ping.getCode(), 0, (Long.toString(currentTime)).getBytes(),currentTime);
+    }
+
+    public void send(Socket socket) throws IOException {
+        System.out.println("----------------------------------");
+        System.out.println("Request sending ....");
+
+        setLengthAndMask();
+
+        int requestLngth = 2;
+        if (extendedPayloadLengthContinued > 0){
+            requestLngth += 8 + extendedPayloadLengthContinued;
+        }else if (extendedPayloadLength > 0){
+            requestLngth += 2 + extendedPayloadLength;
+        } else {
+            requestLngth += payloadLength;
+        }
+        if(mask == 1){
+            requestLngth += 4;
+        }
+
+        byte[] request = new byte[requestLngth];
+        int pos = 0;
+
+        request[pos] = (byte)((((((int)0 << 1 | fin)<<1|rsv1)<<1|rsv2)<<1|rsv3)<<4|opcode);
+        pos++;
+
+        System.out.println("Fin : " + this.fin);
+        System.out.println("RSV1 : " + this.rsv1 + ", RSV2 : " + this.rsv2 + ", RSV3 : " + this.rsv3);
+        System.out.println("Opcode : " + this.opcode);
+
+        request[pos] = (byte)( (((int)0 << 1 | mask)<<7|payloadLength) );
+        pos++;
+
+        System.out.println("Mask : " + mask);
+        System.out.println("PayloadLength : " + payloadLength);
+
+        if(extendedPayloadLength>0) {
+            request[pos] = (byte)( ((int)0 << 16 | extendedPayloadLength) );
+            pos++;
+            System.out.println("Extended payload length : "+ extendedPayloadLength);
+        }
+
+        if(extendedPayloadLengthContinued>0) {
+            request[pos] = (byte)( ((int)0 << 64 | extendedPayloadLengthContinued) );
+            pos++;
+            System.out.println("Extended payload length continued : "+ extendedPayloadLengthContinued);
+        }
+
+        if(mask == 1) {
+            request[pos] = (byte)( ((int)0 << 8 | maskingKey[0]) );
+            pos++;
+            request[pos] = (byte)( ((int)0 << 8 | maskingKey[1]) );
+            pos++;
+            request[pos] = (byte)( ((int)0 << 8 | maskingKey[2]) );
+            pos++;
+            request[pos] = (byte)( ((int)0 << 8 | maskingKey[3]) );
+            pos++;
+            System.out.println("MaskingKey 1:" + maskingKey[0]);
+            System.out.println("MaskingKey 2:" + maskingKey[1]);
+            System.out.println("MaskingKey 3:" + maskingKey[2]);
+            System.out.println("MaskingKey 4:" + maskingKey[3]);
+        }
+
+        int payloadLngth = Math.max(Math.max(payloadLength, extendedPayloadLength), extendedPayloadLengthContinued);
+        for (int i = 0; i < payloadLngth; i++) {
+            if(mask == 0) request[pos] = payload[i];
+            else request[pos] = (byte)(payload[i] ^ maskingKey[i%4]);
+            pos++;
+            if (opcode == Opcode.text.getCode() || opcode == Opcode.binary.getCode())System.out.println("Payload ["+i+"] :"+payload[i]);
+        }
+
+        socket.getOutputStream().write(request);
+        System.out.println("Request send !");
+        System.out.println("----------------------------------");
+    }
+
+    private void setLengthAndMask(){
+        int lngth = payload.length;
+        if (lngth < 126) this.payloadLength = lngth;
+        else if (lngth <= Math.pow(2, 16)) {
+            this.payloadLength = 126;
+            this.extendedPayloadLength = lngth;
+        } else {
+            this.payloadLength = 127;
+            this.extendedPayloadLengthContinued = lngth;
+        }
+        if (mask == 1) {
+            Random r = new Random();
+            this.maskingKey = new int[]{r.nextInt((255) + 1), r.nextInt((255) + 1), r.nextInt((255) + 1), r.nextInt((255) + 1)};
+        }
+    }
 }

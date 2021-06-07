@@ -197,6 +197,38 @@ public class HTTPRequestHandler implements Runnable {
             Frame frame = new Frame(this.websocketpipe);
             frame.setPayload(Tools.unMaskPayload(frame));
             frame.displayMessage();
+
+            if (frame.getOpcode() == Frame.Opcode.text.getCode()){
+                //PING
+                Thread thread = new Thread(() -> {
+                    try {
+                        while (true){
+                            System.out.println("PING");
+                            Frame pingFrame = Frame.createPingFrame();
+                            pingFrame.send(clientSocket);
+                            Thread.sleep(30000);
+                        }
+                    } catch (InterruptedException | IOException e) {
+                        e.printStackTrace();
+                    }
+                });
+                thread.start();
+            }
+
+
+            //PONG
+            if(frame.getOpcode() == Frame.Opcode.pong.getCode()) {
+                Date date = new Date();
+                long pingTime = Long.parseLong(new String(frame.getPayload()));
+                long pongTime = date.getTime();
+                long latency = pongTime - pingTime;
+                System.out.println("ping time:"+ pingTime);
+                System.out.println("pong time:"+ pongTime);
+                System.out.println("PONG : "+ latency+"ms");
+
+            }
+
+
         } catch (Exception e) {
             e.printStackTrace();
         }
