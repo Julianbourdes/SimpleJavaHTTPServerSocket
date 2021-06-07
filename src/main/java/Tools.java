@@ -18,11 +18,11 @@ public class Tools {
         return md.digest(data);
     }
 
-    protected static byte[] bytesToArray(int nbByte, DataInputStream data) throws IOException {
-        byte[] res = new byte[nbByte];
+    protected static int[] bytesToArray(int nbByte, DataInputStream data) throws IOException {
+        int[] res = new int[nbByte];
 
-        for (int i = 0; i < nbByte-1;i++ ) {
-           res[i] = data.readByte();
+        for (int i = 0; i < nbByte;i++ ) {
+           res[i] = data.readByte() & 0xff;
         }
 
         return res;
@@ -41,13 +41,12 @@ public class Tools {
 
         if(frame.getMask() == 1){
 
-            byte[] masks = frame.getMaskingKey();
+            int[] masks = frame.getMaskingKey();
 
             for (int i=0; i < data.length; i++){
-                int currentMask = Byte.toUnsignedInt(masks[i % 4]);
-                data[i] = (byte) (data[i]|currentMask);
-                System.out.println(currentMask);
-                System.out.println(String.format("%8s", Integer.toBinaryString(currentMask & 0xFF)).replace(' ', '0'));
+                int currentMask = (byte)masks[i % 4];
+                data[i] = (byte) (data[i]^currentMask);
+                System.out.println("Payload ["+i+"] :"+data[i] + " : "+(char)data[i] );
             }
         }
 

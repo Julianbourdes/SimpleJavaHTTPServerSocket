@@ -190,19 +190,16 @@ public class HTTPRequestHandler implements Runnable {
     }
 
     private void treatmentTrame() throws IOException {
+
         // Declarate buffer
         // We will treat byte by byte
         try{
-
-
-        System.out.println("TEST");
-        Frame frame = new Frame(this.websocketpipe);
-        frame.setPayload(Tools.unMaskPayload(frame));
-        frame.displayMessage();
+            Frame frame = new Frame(this.websocketpipe);
+            frame.setPayload(Tools.unMaskPayload(frame));
+            frame.displayMessage();
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
 }

@@ -63,7 +63,7 @@ public class Frame {
     private int payloadLength;
     private int extendedPayloadLength = 0;
     private int extendedPayloadLengthContinued = 0;
-    private byte[] maskingKey;
+    private int[] maskingKey;
     private byte[] payload;
 
     public int getFin() {
@@ -138,11 +138,11 @@ public class Frame {
         this.extendedPayloadLengthContinued = extendedPayloadLengthContinued;
     }
 
-    public byte[] getMaskingKey() {
+    public int[] getMaskingKey() {
         return maskingKey;
     }
 
-    public void setMaskingKey(byte[] maskingKey) {
+    public void setMaskingKey(int[] maskingKey) {
         this.maskingKey = maskingKey;
     }
 
@@ -164,17 +164,17 @@ public class Frame {
         this.opcode = octet & 0b00001111;
 
         // End treatment first byte
-        System.out.println("Test - Fin : "+this.fin+", rsv1 : "+this.rsv1+", rsv2 : "+this.rsv2+", rsv3 : "+this.rsv3+", opcode : "+ this.opcode);
+        System.out.println("Fin : "+this.fin);
+        System.out.println("RSV1 : "+this.rsv1+", RSV2 : "+this.rsv2+", RSV3 : "+this.rsv3);
+        System.out.println("Opcode : "+ this.opcode);
 
         // Get second octet
         octet = dataInputStream.readByte();
         this.mask = ((Byte.toUnsignedInt(octet) & 0b10000000) >> 7);
         this.payloadLength = (Byte.toUnsignedInt(octet) & 0b01111111); // Non signé
 
-        System.out.println("------mask/payloadLength-----");
         System.out.println("Mask : " + mask);
-        System.out.println("Payload : " + payloadLength);
-        System.out.println("-----------");
+        System.out.println("PayloadLength : " + payloadLength);
 
         // Is there and extended payload length or extendedPayloadlengthContinue ?
         if(payloadLength == 126){
@@ -191,13 +191,17 @@ public class Frame {
         // Is there a mask ?
         if(this.mask == 1) {
             this.maskingKey = Tools.bytesToArray(4, dataInputStream);
+            System.out.println("MaskingKey 1:"+maskingKey[0]);
+            System.out.println("MaskingKey 2:"+maskingKey[1]);
+            System.out.println("MaskingKey 3:"+maskingKey[2]);
+            System.out.println("MaskingKey 4:"+maskingKey[3]);
         }
 
         // Payload
         int lngth = Math.max(Math.max(payloadLength,extendedPayloadLength),extendedPayloadLengthContinued);
         byte[] res = new byte[lngth];
         for (int i=0;i<lngth;i++){
-            res[i] = dataInputStream.readByte();
+            res[i] = dataInputStream.readByte() ;
         }
         this.payload = res;
     }
