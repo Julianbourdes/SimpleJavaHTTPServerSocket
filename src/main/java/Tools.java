@@ -54,4 +54,16 @@ public class Tools {
         return data;
     }
 
+    public static int concatByteToInt(int nbByte, DataInputStream data) throws IOException {
+        int res = data.readByte() & 0xff;
+        int tmp;
+
+        for (int i = 1; i < nbByte;i++ ) {
+            tmp = data.readByte() & 0xff;
+            res <<= 8;
+            res |= tmp;
+        }
+
+        return res;
+    }
 }

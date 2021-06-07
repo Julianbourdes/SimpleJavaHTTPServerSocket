@@ -181,13 +181,11 @@ public class Frame {
 
         // Is there and extended payload length or extendedPayloadlengthContinue ?
         if (payloadLength == 126) {
-            //TODO
-            //this.extendedPayloadLength = Tools.concatByteToInt(2, dataInputStream);
-            //System.out.println("PayloadLength : " + extendedPayloadLength);
+            this.extendedPayloadLength = Tools.concatByteToInt(2, dataInputStream);
+            System.out.println("extendedPayloadLength : " + extendedPayloadLength);
         } else if (payloadLength == 127) {
-            //TODO
-            //this.extendedPayloadLengthContinued = Tools.concatByteToInt(8, dataInputStream);
-            //System.out.println("Extended payload length continued : "+ extendedPayloadLengthContinued);
+            this.extendedPayloadLengthContinued = Tools.concatByteToInt(8, dataInputStream);
+            System.out.println("extendedPayloadLengthContinued : "+ extendedPayloadLengthContinued);
         }
 
         // Is there a mask ?
