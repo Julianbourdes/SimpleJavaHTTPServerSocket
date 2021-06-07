@@ -68,7 +68,6 @@ public class Frame {
     private int extendedPayloadLengthContinued = 0;
     private int[] maskingKey;
     private byte[] payload;
-    private long lastPingTime;
 
     public int getFin() {
         return fin;
@@ -158,18 +157,10 @@ public class Frame {
         this.payload = payload;
     }
 
-    public long getLastPingTime() {
-        return lastPingTime;
-    }
-
-    public void setLastPingTime(long lastPingTime) {
-        this.lastPingTime = lastPingTime;
-    }
-
     public Frame(DataInputStream dataInputStream) throws IOException {
         // Read first byte
         byte octet = dataInputStream.readByte();
-        this.fin = octet & 0b10000000 >> 7;
+        this.fin = ((Byte.toUnsignedInt(octet) & 0b10000000) >> 7);
         this.rsv1 = 1 << octet & 0b01000000 >> 6;
         this.rsv2 = 2 << octet & 0b00100000 >> 5;
         this.rsv3 = 3 << octet & 0b00010000 >> 4;
@@ -217,7 +208,7 @@ public class Frame {
         this.payload = res;
     }
 
-    public Frame(int fin, int rsv1, int rsv2, int rsv3, int opcode, int mask, byte[] payload,long currentTime) {
+    public Frame(int fin, int rsv1, int rsv2, int rsv3, int opcode, int mask, byte[] payload) {
         this.fin = fin;
         this.rsv1 = rsv1;
         this.rsv2 = rsv2;
@@ -227,7 +218,6 @@ public class Frame {
         this.payload = payload;
         this.extendedPayloadLength = 0;
         this.extendedPayloadLengthContinued = 0;
-        this.lastPingTime = currentTime;
        setLengthAndMask();
     }
 
@@ -240,7 +230,7 @@ public class Frame {
     public static Frame createPingFrame() {
         Date date = new Date();
         long currentTime = date.getTime();
-        return new Frame(1, 0, 0, 0, Opcode.ping.getCode(), 0, (Long.toString(currentTime)).getBytes(),currentTime);
+        return new Frame(1, 0, 0, 0, Opcode.ping.getCode(), 0, (Long.toString(currentTime)).getBytes());
     }
 
     public void send(Socket socket) throws IOException {
@@ -309,7 +299,7 @@ public class Frame {
             if(mask == 0) request[pos] = payload[i];
             else request[pos] = (byte)(payload[i] ^ maskingKey[i%4]);
             pos++;
-            if (opcode == Opcode.text.getCode() || opcode == Opcode.binary.getCode())System.out.println("Payload ["+i+"] :"+payload[i]);
+            if (opcode == Opcode.text.getCode() || opcode == Opcode.binary.getCode() || opcode == Opcode.continuation.getCode())System.out.println("Payload ["+i+"] :"+payload[i]+ " : "+(char)payload[i]);
         }
 
         socket.getOutputStream().write(request);
@@ -331,5 +321,13 @@ public class Frame {
             Random r = new Random();
             this.maskingKey = new int[]{r.nextInt((255) + 1), r.nextInt((255) + 1), r.nextInt((255) + 1), r.nextInt((255) + 1)};
         }
+    }
+
+    public void createSegmentedRequest(Socket socket) throws IOException, InterruptedException {
+       Frame frame1 =  new Frame(0, 0, 0, 0, Opcode.text.getCode(), 0, new String("Part1").getBytes());
+       Frame frame2 =  new Frame(1, 0, 0, 0, Opcode.continuation.getCode(), 0, new String("Part2").getBytes());
+       frame1.send(socket);
+       Thread.sleep(20000);
+       frame2.send(socket);
     }
 }

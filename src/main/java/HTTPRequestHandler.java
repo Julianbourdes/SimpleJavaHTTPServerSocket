@@ -194,11 +194,12 @@ public class HTTPRequestHandler implements Runnable {
         // Declarate buffer
         // We will treat byte by byte
         try{
+            System.out.println("----------------------------------");
             Frame frame = new Frame(this.websocketpipe);
             frame.setPayload(Tools.unMaskPayload(frame));
             frame.displayMessage();
 
-            if (frame.getOpcode() == Frame.Opcode.text.getCode()){
+            if (frame.getOpcode() == Frame.Opcode.text.getCode() && new String(frame.getPayload()).equals("START")){
                 //PING
                 Thread thread = new Thread(() -> {
                     try {
@@ -226,6 +227,11 @@ public class HTTPRequestHandler implements Runnable {
                 System.out.println("pong time:"+ pongTime);
                 System.out.println("PONG : "+ latency+"ms");
 
+            }
+            Random r = new Random();
+            int rdm;
+            if(( rdm = r.nextInt((2048) + 1) % 8) == 0){
+                frame.createSegmentedRequest(clientSocket);
             }
 
 

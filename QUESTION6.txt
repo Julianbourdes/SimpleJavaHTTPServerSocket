@@ -1,0 +1,4 @@
+question 6 :
+
+Dans la première frame le bit FIN vaut 0 et le bit OPCODE vaut 1 (TEXT)
+Dans la deuxième (et dernière) frame le bit FIN vaut 1 et le bit OPCODE vaut 0 (CONTINUATION)
