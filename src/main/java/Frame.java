@@ -323,7 +323,7 @@ public class Frame {
         }
     }
 
-    public void createSegmentedRequest(Socket socket) throws IOException, InterruptedException {
+    public static void createSegmentedRequest(Socket socket) throws IOException, InterruptedException {
        Frame frame1 =  new Frame(0, 0, 0, 0, Opcode.text.getCode(), 0, new String("Part1").getBytes());
        Frame frame2 =  new Frame(1, 0, 0, 0, Opcode.continuation.getCode(), 0, new String("Part2").getBytes());
        frame1.send(socket);

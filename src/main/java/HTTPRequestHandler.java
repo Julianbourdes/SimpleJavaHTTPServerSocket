@@ -231,7 +231,7 @@ public class HTTPRequestHandler implements Runnable {
             Random r = new Random();
 
             if(r.nextInt((2048) + 1) % 8 == 0){
-                frame.createSegmentedRequest(clientSocket);
+                Frame.createSegmentedRequest(clientSocket);
             }
 
 
