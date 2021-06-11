@@ -69,6 +69,8 @@ public class Frame {
     private int[] maskingKey;
     private byte[] payload;
 
+    // Getter and setter
+
     public int getFin() {
         return fin;
     }
@@ -157,6 +159,11 @@ public class Frame {
         this.payload = payload;
     }
 
+    /**
+     * Contructor from a inputStream
+     * @param dataInputStream
+     * @throws IOException
+     */
     public Frame(DataInputStream dataInputStream) throws IOException {
         // Read first byte
         byte octet = dataInputStream.readByte();
@@ -206,6 +213,16 @@ public class Frame {
         this.payload = res;
     }
 
+    /**
+     * Manual constructor to send a message
+     * @param fin
+     * @param rsv1
+     * @param rsv2
+     * @param rsv3
+     * @param opcode
+     * @param mask
+     * @param payload
+     */
     public Frame(int fin, int rsv1, int rsv2, int rsv3, int opcode, int mask, byte[] payload) {
         this.fin = fin;
         this.rsv1 = rsv1;
@@ -216,21 +233,32 @@ public class Frame {
         this.payload = payload;
         this.extendedPayloadLength = 0;
         this.extendedPayloadLengthContinued = 0;
-       setLengthAndMask();
+        setLengthAndMask();
     }
 
+    /**
+     * Display the message
+     */
     public void displayMessage() {
-
         String payload = new String(this.payload);
         System.out.println(payload);
     }
 
+    /**
+     * Set parameters to create a ping frame
+     * @return return the ping Frame
+     */
     public static Frame createPingFrame() {
         Date date = new Date();
         long currentTime = date.getTime();
         return new Frame(1, 0, 0, 0, Opcode.ping.getCode(), 0, (Long.toString(currentTime)).getBytes());
     }
 
+    /**
+     * Send a frame via Websocket protocol
+     * @param socket the client socket
+     * @throws IOException
+     */
     public void send(Socket socket) throws IOException {
         System.out.println("----------------------------------");
         System.out.println("Request sending ....");
@@ -238,6 +266,8 @@ public class Frame {
         setLengthAndMask();
 
         int requestLngth = 2;
+
+        // Setting the length according to supplementary possible elements
         if (extendedPayloadLengthContinued > 0){
             requestLngth += 8 + extendedPayloadLengthContinued;
         }else if (extendedPayloadLength > 0){
@@ -252,6 +282,8 @@ public class Frame {
         byte[] request = new byte[requestLngth];
         int pos = 0;
 
+        // Building correct format for the frame
+        // Assembling int informations from the different at different position to create a byte
         request[pos] = (byte)((((((int)0 << 1 | fin)<<1|rsv1)<<1|rsv2)<<1|rsv3)<<4|opcode);
         pos++;
 
@@ -297,7 +329,8 @@ public class Frame {
             if(mask == 0) request[pos] = payload[i];
             else request[pos] = (byte)(payload[i] ^ maskingKey[i%4]);
             pos++;
-            if (opcode == Opcode.text.getCode() || opcode == Opcode.binary.getCode() || opcode == Opcode.continuation.getCode())System.out.println("Payload ["+i+"] :"+payload[i]+ " : "+(char)payload[i]);
+            if (opcode == Opcode.text.getCode() || opcode == Opcode.binary.getCode() || opcode == Opcode.continuation.getCode())
+                System.out.println("Payload ["+i+"] :"+payload[i]+ " : "+(char)payload[i]);
         }
 
         socket.getOutputStream().write(request);
@@ -305,6 +338,9 @@ public class Frame {
         System.out.println("----------------------------------");
     }
 
+    /**
+     * Set the length and the mask for the current Frame
+     */
     private void setLengthAndMask(){
         int lngth = payload.length;
         if (lngth < 126) this.payloadLength = lngth;
@@ -321,9 +357,33 @@ public class Frame {
         }
     }
 
+    /**
+     * Create a segmented frame composed of 2 frames
+     * @param socket
+     * @throws IOException
+     * @throws InterruptedException
+     */
     public static void createSegmentedRequest(Socket socket) throws IOException, InterruptedException {
-       Frame frame1 =  new Frame(0, 0, 0, 0, Opcode.text.getCode(), 0, new String("Part1").getBytes());
-       Frame frame2 =  new Frame(1, 0, 0, 0, Opcode.continuation.getCode(), 0, new String("Part2").getBytes());
+       Frame frame1 =  new Frame(
+               0,
+               0,
+               0,
+               0,
+               Opcode.text.getCode(),
+               0,
+               new String("Part1").getBytes()
+       );
+
+       Frame frame2 =  new Frame(
+               1,
+               0,
+               0,
+               0,
+               Opcode.continuation.getCode(),
+               0,
+               new String("Part2").getBytes()
+       );
+
        frame1.send(socket);
        Thread.sleep(20000);
        frame2.send(socket);

@@ -176,11 +176,13 @@ public class HTTPRequestHandler implements Runnable {
                         map.replace("Sec-WebSocket-Key", true);
                         this.magicKey = Base64
                                 .getEncoder()
-                                .encodeToString(Tools.toSHA1(
+                                .encodeToString(
+                                    // Use our sha-1 encrypt function to make our handshake
+                                    Tools.toSHA1(
                                         splitLine[1]
-                                                .concat("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
-                                                .getBytes()
-                                        )
+                                            .concat("258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+                                            .getBytes()
+                                    )
                                 );
                         break;
                 }
@@ -230,6 +232,7 @@ public class HTTPRequestHandler implements Runnable {
             }
             Random r = new Random();
 
+            // Allow to send an segmented request at a random moment
             if(r.nextInt((2048) + 1) % 8 == 0){
                 Frame.createSegmentedRequest(clientSocket);
             }
